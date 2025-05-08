@@ -1,14 +1,13 @@
-// App.js
-import React from "react";
+import React, { useState } from "react";
+import axios from "axios";
+import * as XLSX from "xlsx";
 import "./App.css";
-import axios from "axios"; // Ensure axios is correctly imported
-import * as XLSX from "xlsx"; // Import xlsx library to read Excel files
 
 function App() {
-  const [message, setMessage] = React.useState("");
-  const [status, setStatus] = React.useState(false);
-  const [emails, setEmails] = React.useState([]); // State to store emails
-  const [subject, setSubject] = React.useState(""); // State to store the email subject
+  const [message, setMessage] = useState("");
+  const [status, setStatus] = useState(false);
+  const [emails, setEmails] = useState([]); // State to store emails
+  const [subject, setSubject] = useState(""); // State to store the email subject
 
   // Function to handle message input changes
   function handleMessage(e) {
@@ -59,7 +58,7 @@ function App() {
   function send() {
     setStatus(true); // Set the status to "Sending Mail..." when starting
     axios
-      .post("http://localhost:5000/send-bulk", {
+      .post("https://bulk-mail-back-end.vercel.app/send-bulk", {
         recipients: emails,
         subject: subject,
         message: message,
@@ -72,7 +71,7 @@ function App() {
       .catch((error) => {
         console.error("There was an error sending the email:", error);
         setStatus(false); // Reset status to false in case of error
-        alert("There was an error sending the email:", error); // Show error alert
+        alert("There was an error sending the email."); // Show error alert
       });
   }
 
