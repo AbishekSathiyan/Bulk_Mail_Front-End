@@ -1,10 +1,12 @@
+// tailwind.config.js
 module.exports = {
-    content: [
-      "./src/**/*.{js,jsx,ts,tsx}",  // This ensures Tailwind scans your JS/JSX/TS/TSX files for classes
-    ],
-    theme: {
-      extend: {},
+  content: ["./src/**/*.{js,jsx,ts,tsx}"],
+  theme: {
+    extend: {
+      fontFamily: {
+        poppins: ['Poppins', 'sans-serif'],
+      },
     },
-    plugins: [],
-  }
-  
+  },
+  plugins: [],
+};
