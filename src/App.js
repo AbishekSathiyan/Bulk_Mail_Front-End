@@ -20,9 +20,39 @@ function PrivateRoute({ children }) {
 // Main layout
 function AppContent() {
   const [showHistory, setShowHistory] = useState(false);
+  const [showOtpVerification, setShowOtpVerification] = useState(false);
+  const [otp, setOtp] = useState("");
+  const [generatedOtp, setGeneratedOtp] = useState(null);
   const location = useLocation();
   const isLoginOrOtp =
     location.pathname === "/login" || location.pathname === "/otp";
+
+  const generateOtp = () => {
+    const newOtp = Math.floor(100000 + Math.random() * 900000); // 6-digit OTP
+    setGeneratedOtp(newOtp);
+    console.log("Generated OTP:", newOtp); // For testing
+    setShowOtpVerification(true);
+    return newOtp;
+  };
+
+  const verifyOtp = () => {
+    if (parseInt(otp) === generatedOtp) {
+      setShowOtpVerification(false);
+      setShowHistory(true);
+    } else {
+      alert("Invalid OTP. Access Denied");
+      // Speech synthesis for "Access Denied"
+      if ("speechSynthesis" in window) {
+        const utterance = new SpeechSynthesisUtterance("Access Denied");
+        utterance.rate = 0.8;
+        speechSynthesis.speak(utterance);
+      }
+    }
+  };
+
+  const handleViewHistoryClick = () => {
+    generateOtp();
+  };
 
   return (
     <div className="text-center">
@@ -48,7 +78,7 @@ function AppContent() {
               Send Email
             </button>
             <button
-              onClick={() => setShowHistory(true)}
+              onClick={handleViewHistoryClick}
               className={`px-4 py-2 rounded ${
                 showHistory
                   ? "bg-white text-blue-700"
@@ -83,6 +113,37 @@ function AppContent() {
         </Routes>
       </main>
 
+      {/* OTP Verification Modal for History */}
+      {showOtpVerification && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-lg max-w-sm w-full">
+            <h3 className="text-lg font-semibold mb-4">OTP Verification</h3>
+            <p className="mb-2">Enter OTP to view history</p>
+            <input
+              type="number"
+              value={otp}
+              onChange={(e) => setOtp(e.target.value)}
+              placeholder="Enter OTP"
+              className="w-full py-2 px-3 rounded-md border border-gray-300 mb-4"
+            />
+            <div className="flex justify-end space-x-2">
+              <button
+                onClick={() => setShowOtpVerification(false)}
+                className="px-4 py-2 bg-gray-300 rounded-md"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={verifyOtp}
+                className="px-4 py-2 bg-blue-600 text-white rounded-md"
+              >
+                Verify
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Footer */}
       {!isLoginOrOtp && (
         <footer className="text-sm text-gray-300 mt-10 pb-4">
@@ -93,8 +154,8 @@ function AppContent() {
   );
 }
 
-// Root
-export default function App() {
+// Root component
+function App() {
   const [ready, setReady] = useState(false);
   useEffect(() => setReady(true), []);
   if (!ready) return null;
@@ -105,3 +166,5 @@ export default function App() {
     </Router>
   );
 }
+
+export default App;
