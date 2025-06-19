@@ -6,14 +6,16 @@ export default function EmailHistory() {
 
   useEffect(() => {
     axios
-      .get("http://localhost:5000/api/history")
+      .get(`${process.env.REACT_APP_BACKEND_URL}/api/history`)
       .then((res) => setHistory(res.data))
       .catch((err) => console.error("Error fetching history", err));
   }, []);
 
   return (
     <div className="w-full max-w-6xl bg-white text-black rounded-2xl shadow-lg p-6">
-      <h2 className="text-xl font-bold mb-4 text-blue-800">Sent Email History</h2>
+      <h2 className="text-xl font-bold mb-4 text-blue-800">
+        Sent Email History
+      </h2>
       {history.length === 0 ? (
         <p className="text-gray-500">No emails sent yet.</p>
       ) : (

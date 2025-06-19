@@ -31,7 +31,7 @@ export default function BulkMailForm() {
 
     setSending(true);
     axios
-      .post("http://localhost:5000/api/send-bulk", {
+      .post(`${process.env.REACT_APP_BACKEND_URL}/api/send-bulk`, {
         recipients: emails,
         subject,
         message,
@@ -44,7 +44,6 @@ export default function BulkMailForm() {
   return (
     <div className="w-full max-w-4xl bg-white text-black rounded-2xl shadow-lg p-6 sm:p-8 space-y-6">
       {/* Header section */}
-     
 
       {/* Subject Input */}
       <input
