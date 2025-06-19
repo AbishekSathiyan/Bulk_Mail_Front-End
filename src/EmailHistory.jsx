@@ -12,17 +12,38 @@ export default function EmailHistory() {
         setLoading(true);
         setError(null);
         
-        const response = await axios.get(`${process.env.REACT_APP_BACKEND_URL}/api/email-history`);
+        // Try common history endpoint variations
+        const endpoints = [
+          '/api/email-history',
+          '/api/history',
+          '/api/emails/history',
+          '/api/sent-emails'
+        ];
+
+        let lastError = null;
         
-        // Validate response structure
-        if (!response.data || !Array.isArray(response.data.history)) {
-          throw new Error('Unexpected API response format');
+        for (const endpoint of endpoints) {
+          try {
+            const response = await axios.get(`${process.env.REACT_APP_BACKEND_URL}${endpoint}`);
+            if (response.data) {
+              // Handle different possible response structures
+              const data = response.data.history || response.data.emails || response.data;
+              if (Array.isArray(data)) {
+                setHistory(data);
+                return;
+              }
+            }
+          } catch (err) {
+            lastError = err;
+            continue; // Try next endpoint
+          }
         }
-        
-        setHistory(response.data.history);
+
+        throw lastError || new Error('No valid history endpoint found');
+
       } catch (err) {
         console.error('Error fetching history:', err);
-        setError(err.message || 'Failed to load email history');
+        setError(err.response?.data?.message || err.message || 'Failed to load email history');
       } finally {
         setLoading(false);
       }
@@ -44,6 +65,14 @@ export default function EmailHistory() {
       <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4" role="alert">
         <p className="font-bold">Error</p>
         <p>{error}</p>
+        <div className="mt-4">
+          <p className="text-sm">Possible solutions:</p>
+          <ul className="list-disc pl-5 text-sm">
+            <li>Check if your backend is running</li>
+            <li>Verify the correct endpoint exists</li>
+            <li>Ensure CORS is properly configured</li>
+          </ul>
+        </div>
         <button 
           onClick={() => window.location.reload()}
           className="mt-2 px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition"
@@ -53,6 +82,9 @@ export default function EmailHistory() {
       </div>
     );
   }
+
+  // ... rest of your component (table display) remains the same ...
+}
 
   if (history.length === 0) {
     return (
@@ -74,7 +106,6 @@ export default function EmailHistory() {
         <p className="mt-1 text-sm text-gray-500">Your sent emails will appear here.</p>
       </div>
     );
-  }
 
   return (
     <div className="overflow-x-auto">
