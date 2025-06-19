@@ -3,7 +3,7 @@ import React, { useEffect, useState, useCallback } from "react";
 import axios from "axios";
 
 const LIMIT = 10;
-const backendUrl = import.meta.env.VITE_BACKEND_URL;
+const BASE = import.meta.env.VITE_BACKEND_URL;
 
 export default function EmailHistory() {
   const [emails, setEmails] = useState([]);
