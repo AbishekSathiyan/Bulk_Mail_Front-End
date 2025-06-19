@@ -83,9 +83,6 @@ export default function EmailHistory() {
     );
   }
 
-  // ... rest of your component (table display) remains the same ...
-}
-
   if (history.length === 0) {
     return (
       <div className="text-center py-12">
@@ -106,6 +103,7 @@ export default function EmailHistory() {
         <p className="mt-1 text-sm text-gray-500">Your sent emails will appear here.</p>
       </div>
     );
+  }
 
   return (
     <div className="overflow-x-auto">
