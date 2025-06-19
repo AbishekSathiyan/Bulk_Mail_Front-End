@@ -1,49 +1,49 @@
+// EmailHistory.jsx
 import React, { useEffect, useState, useCallback } from "react";
 import axios from "axios";
 
 const LIMIT = 10;
-const BASE = process.env.REACT_APP_BACKEND_URL || "";
+const BASE = import.meta.env.VITE_BACKEND_URL || ""; // ✅ Vite-style env
 
 export default function EmailHistory() {
-  const [emails,      setEmails]      = useState([]);
-  const [page,        setPage]        = useState(1);
-  const [totalPages,  setTotalPages]  = useState(1);
-  const [status,      setStatus]      = useState("");
-  const [search,      setSearch]      = useState("");
-  const [loading,     setLoading]     = useState(false);
-  const [error,       setError]       = useState(null);
-  const [openId,      setOpenId]      = useState(null); // row toggle
+  const [emails, setEmails] = useState([]);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [status, setStatus] = useState("");
+  const [search, setSearch] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [openId, setOpenId] = useState(null);
 
-  /* -------------------------------------------------- *
-   * fetcher with useCallback so we can cancel easily   *
-   * -------------------------------------------------- */
-  const fetchData = useCallback(async (signal) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const { data } = await axios.get(`${BASE}/api/history`, {
-        signal,
-        params: {
-          page,
-          limit: LIMIT,
-          ...(status && { status }),
-          ...(search && { search }),
-        },
-      });
-      setEmails(data.data);
-      setTotalPages(data.pagination?.totalPages || 1);
-    } catch (err) {
-      if (axios.isCancel(err)) return; // user navigated away
-      const msg =
-        err.response?.data?.error ||
-        (err.message.startsWith("Network") ? "Network / CORS error" : err.message);
-      setError(msg);
-    } finally {
-      setLoading(false);
-    }
-  }, [page, status, search]);
+  const fetchData = useCallback(
+    async (signal) => {
+      setLoading(true);
+      setError(null);
+      try {
+        const { data } = await axios.get(`${BASE}/api/history`, {
+          signal,
+          params: {
+            page,
+            limit: LIMIT,
+            ...(status && { status }),
+            ...(search && { search }),
+          },
+        });
+        setEmails(data.data);
+        setTotalPages(data.pagination?.totalPages || 1);
+      } catch (err) {
+        if (axios.isCancel(err)) return;
+        const msg =
+          err.response?.data?.error ||
+          (err.message.startsWith("Network") ? "Network / CORS error" : err.message);
+        setError(msg);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [page, status, search]
+  );
 
-  /* fire on mount and whenever deps change */
   useEffect(() => {
     const ctrl = new AbortController();
     fetchData(ctrl.signal);
@@ -52,7 +52,6 @@ export default function EmailHistory() {
 
   const resetToFirstPage = () => setPage(1);
 
-  /* ----------------------------- JSX ----------------------------- */
   return (
     <div className="max-w-5xl mx-auto p-6">
       <h2 className="text-2xl font-bold mb-6">Mail History</h2>
@@ -109,13 +108,9 @@ export default function EmailHistory() {
               {emails.map((email) => (
                 <React.Fragment key={email._id}>
                   <tr className="border-t">
-                    <td className="p-3">
-                      {new Date(email.createdAt).toLocaleString()}
-                    </td>
+                    <td className="p-3">{new Date(email.createdAt).toLocaleString()}</td>
                     <td className="p-3 max-w-xs truncate">{email.subject}</td>
-                    <td className="p-3 text-center">
-                      {email.recipientCount}
-                    </td>
+                    <td className="p-3 text-center">{email.recipientCount}</td>
                     <td className="p-3 capitalize">
                       <span
                         className={
@@ -133,9 +128,7 @@ export default function EmailHistory() {
                     </td>
                     <td className="p-3 text-right">
                       <button
-                        onClick={() =>
-                          setOpenId(openId === email._id ? null : email._id)
-                        }
+                        onClick={() => setOpenId(openId === email._id ? null : email._id)}
                         className="text-blue-600 underline"
                       >
                         {openId === email._id ? "Hide" : "View"}
@@ -143,7 +136,7 @@ export default function EmailHistory() {
                     </td>
                   </tr>
 
-                  {/* Expanded row */}
+                  {/* Expanded Row */}
                   {openId === email._id && (
                     <tr className="bg-gray-50 border-t">
                       <td colSpan="5" className="p-4">
@@ -165,14 +158,11 @@ export default function EmailHistory() {
                               </span>
                               {r.sentAt && (
                                 <span className="ml-2 text-gray-500">
-                                  (
-                                  {new Date(r.sentAt).toLocaleTimeString()})
+                                  ({new Date(r.sentAt).toLocaleTimeString()})
                                 </span>
                               )}
                               {r.error && (
-                                <span className="ml-2 text-red-500">
-                                  Error: {r.error}
-                                </span>
+                                <span className="ml-2 text-red-500">Error: {r.error}</span>
                               )}
                             </li>
                           ))}
