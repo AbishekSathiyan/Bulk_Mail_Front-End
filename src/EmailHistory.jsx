@@ -1,130 +1,125 @@
-import React, { useEffect, useState } from "react";
-import axios from "axios";
-import { FiRefreshCw, FiMail, FiClock, FiUsers, FiAlertCircle } from "react-icons/fi";
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 
 export default function EmailHistory() {
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const fetchHistory = async () => {
-    try {
-      setLoading(true);
-      const res = await axios.get(
-        `${process.env.REACT_APP_BACKEND_URL || 'https://bulk-mail-back-end-q0zk.onrender.com'}/api/history`
-      );
-      
-      if (Array.isArray(res.data)) {
-        setHistory(res.data);
-      } else {
-        throw new Error("Unexpected API response format");
-      }
-      setError(null);
-    } catch (err) {
-      console.error("Error fetching history:", err);
-      setError(err.message || "Failed to load email history");
-      setHistory([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
+    const fetchHistory = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        const response = await axios.get(`${process.env.REACT_APP_BACKEND_URL}/api/email-history`);
+        
+        // Validate response structure
+        if (!response.data || !Array.isArray(response.data.history)) {
+          throw new Error('Unexpected API response format');
+        }
+        
+        setHistory(response.data.history);
+      } catch (err) {
+        console.error('Error fetching history:', err);
+        setError(err.message || 'Failed to load email history');
+      } finally {
+        setLoading(false);
+      }
+    };
+
     fetchHistory();
   }, []);
 
-  if (loading) return (
-    <div className="flex items-center justify-center min-h-[300px]">
-      <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-    </div>
-  );
-  
-  if (error) return (
-    <div className="bg-red-50 border-l-4 border-red-500 p-4 max-w-4xl mx-auto">
-      <div className="flex items-center">
-        <FiAlertCircle className="text-red-500 mr-2" size={20} />
-        <div>
-          <p className="font-medium text-red-800">Error loading history</p>
-          <p className="text-red-600">{error}</p>
-        </div>
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
       </div>
-      <button 
-        onClick={fetchHistory}
-        className="mt-3 flex items-center px-4 py-2 bg-white border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50"
-      >
-        <FiRefreshCw className="mr-2" /> Try Again
-      </button>
-    </div>
-  );
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4" role="alert">
+        <p className="font-bold">Error</p>
+        <p>{error}</p>
+        <button 
+          onClick={() => window.location.reload()}
+          className="mt-2 px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
+
+  if (history.length === 0) {
+    return (
+      <div className="text-center py-12">
+        <svg
+          className="mx-auto h-12 w-12 text-gray-400"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+          />
+        </svg>
+        <h3 className="mt-2 text-lg font-medium text-gray-900">No email history found</h3>
+        <p className="mt-1 text-sm text-gray-500">Your sent emails will appear here.</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="bg-white shadow rounded-lg overflow-hidden">
-        <div className="px-6 py-5 border-b border-gray-200 flex items-center justify-between">
-          <div>
-            <h2 className="text-xl font-semibold text-gray-900 flex items-center">
-              <FiMail className="mr-2" /> Email History
-            </h2>
-            <p className="mt-1 text-sm text-gray-500">
-              All your sent email campaigns
-            </p>
-          </div>
-          <button
-            onClick={fetchHistory}
-            className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-          >
-            <FiRefreshCw className="mr-2" /> Refresh
-          </button>
-        </div>
-        
-        {history.length === 0 ? (
-          <div className="text-center py-12">
-            <FiMail className="mx-auto h-12 w-12 text-gray-400" />
-            <h3 className="mt-2 text-sm font-medium text-gray-900">No emails sent yet</h3>
-            <p className="mt-1 text-sm text-gray-500">
-              Get started by sending your first email campaign.
-            </p>
-          </div>
-        ) : (
-          <div className="divide-y divide-gray-200">
-            {history.map((mail) => (
-              <div key={mail._id} className="px-6 py-4 hover:bg-gray-50 transition-colors">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-medium text-gray-900">
-                    {mail.subject || 'No subject'}
-                  </h3>
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                    <FiClock className="mr-1" /> 
-                    {new Date(mail.createdAt).toLocaleDateString()}
-                  </span>
-                </div>
-                
-                <div className="mt-2 flex items-center text-sm text-gray-500">
-                  <FiUsers className="mr-1.5" size={16} />
-                  <span>
-                    Sent to {mail.recipients?.length || 0} recipients
-                  </span>
-                </div>
-                
-                <div className="mt-2">
-                  <div className="text-sm text-gray-600">
-                    <span className="font-medium">Recipients:</span> {mail.recipients?.join(', ') || 'None'}
-                  </div>
-                </div>
-                
-                <div className="mt-3 flex items-center text-sm text-gray-500">
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                    Delivered
-                  </span>
-                  <span className="ml-2">
-                    {new Date(mail.createdAt).toLocaleTimeString()}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+    <div className="overflow-x-auto">
+      <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+        <thead className="bg-gray-50 dark:bg-gray-800">
+          <tr>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+              Date
+            </th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+              Subject
+            </th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+              Recipients
+            </th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+              Status
+            </th>
+          </tr>
+        </thead>
+        <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+          {history.map((email) => (
+            <tr key={email.id || email._id || email.timestamp}>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
+                {new Date(email.timestamp).toLocaleString()}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                {email.subject}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
+                {email.recipientCount || email.recipients?.length || 'N/A'}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap">
+                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                  email.status === 'success'
+                    ? 'bg-green-100 text-green-800'
+                    : 'bg-red-100 text-red-800'
+                }`}>
+                  {email.status || 'unknown'}
+                </span>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
