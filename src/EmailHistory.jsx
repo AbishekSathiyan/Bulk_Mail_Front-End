@@ -12,38 +12,40 @@ export default function EmailHistory() {
         setLoading(true);
         setError(null);
         
-        // Try common history endpoint variations
-        const endpoints = [
-          '/api/email-history',
-          '/api/history',
-          '/api/emails/history',
-          '/api/sent-emails'
-        ];
-
-        let lastError = null;
-        
-        for (const endpoint of endpoints) {
+        // First try the most likely endpoint
+        try {
+          const response = await axios.get(`${process.env.REACT_APP_BACKEND_URL}/api/emails`);
+          
+          // Handle different response formats
+          if (response.data) {
+            const data = response.data.history || response.data.emails || response.data;
+            if (Array.isArray(data)) {
+              setHistory(data);
+              return;
+            }
+          }
+        } catch (primaryError) {
+          console.log('Primary endpoint failed, trying fallback...');
+          
+          // If primary fails, try a direct GET to the base URL
           try {
-            const response = await axios.get(`${process.env.REACT_APP_BACKEND_URL}${endpoint}`);
-            if (response.data) {
-              // Handle different possible response structures
-              const data = response.data.history || response.data.emails || response.data;
+            const fallbackResponse = await axios.get(`${process.env.REACT_APP_BACKEND_URL}/emails`);
+            if (fallbackResponse.data) {
+              const data = fallbackResponse.data.history || fallbackResponse.data.emails || fallbackResponse.data;
               if (Array.isArray(data)) {
                 setHistory(data);
                 return;
               }
             }
-          } catch (err) {
-            lastError = err;
-            continue; // Try next endpoint
+          } catch (fallbackError) {
+            console.error('All endpoints failed:', fallbackError);
+            throw new Error('Could not find valid email history endpoint');
           }
         }
 
-        throw lastError || new Error('No valid history endpoint found');
-
       } catch (err) {
         console.error('Error fetching history:', err);
-        setError(err.response?.data?.message || err.message || 'Failed to load email history');
+        setError('Failed to load email history. Please check if the backend is running and the endpoint exists.');
       } finally {
         setLoading(false);
       }
@@ -51,6 +53,8 @@ export default function EmailHistory() {
 
     fetchHistory();
   }, []);
+
+  // ... rest of your component remains the same ...
 
   if (loading) {
     return (
