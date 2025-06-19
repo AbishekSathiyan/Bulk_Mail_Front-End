@@ -68,7 +68,7 @@ export default function LoginPage({ onAuthSuccess }) {
   const handleOtpVerify = () => {
     if (otp === generatedOtp) {
       sessionStorage.setItem("isAuth", "true");
-      navigate("/home", { replace: true });
+      navigate("/", { replace: true });
     } else {
       setErrorMessage("Incorrect OTP");
       setShowError(true);

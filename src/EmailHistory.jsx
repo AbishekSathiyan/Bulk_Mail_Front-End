@@ -1,48 +1,60 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import axios from "axios";
 
 const LIMIT = 10;
+const BASE  = import.meta.env.VITE_BACKEND_URL   // vite style
+          || process.env.REACT_APP_BACKEND_URL   // create‑react‑app style
+          || "";                                 // fallback
 
 export default function EmailHistory() {
-  const [emails, setEmails] = useState([]);
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [status, setStatus] = useState("");
-  const [search, setSearch] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [openId, setOpenId] = useState(null); // ID of the email to expand
+  const [emails,      setEmails]      = useState([]);
+  const [page,        setPage]        = useState(1);
+  const [totalPages,  setTotalPages]  = useState(1);
+  const [status,      setStatus]      = useState("");
+  const [search,      setSearch]      = useState("");
+  const [loading,     setLoading]     = useState(false);
+  const [error,       setError]       = useState(null);
+  const [openId,      setOpenId]      = useState(null); // row toggle
 
-  // Fetch data
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const { data } = await axios.get(
-          `${process.env.REACT_APP_BACKEND_URL}/api/history`,
-          {
-            params: {
-              page,
-              limit: LIMIT,
-              status: status || undefined,
-              search: search || undefined,
-            },
-          }
-        );
-        setEmails(data.data);
-        setTotalPages(data.pagination?.totalPages || 1);
-      } catch (err) {
-        setError(err.response?.data?.error || err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
+  /* -------------------------------------------------- *
+   * fetcher with useCallback so we can cancel easily   *
+   * -------------------------------------------------- */
+  const fetchData = useCallback(async (signal) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const { data } = await axios.get(`${BASE}/api/history`, {
+        signal,
+        params: {
+          page,
+          limit: LIMIT,
+          ...(status && { status }),
+          ...(search && { search }),
+        },
+      });
+      setEmails(data.data);
+      setTotalPages(data.pagination?.totalPages || 1);
+    } catch (err) {
+      if (axios.isCancel(err)) return; // user navigated away
+      const msg =
+        err.response?.data?.error ||
+        (err.message.startsWith("Network") ? "Network / CORS error" : err.message);
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
   }, [page, status, search]);
 
-  const refresh = () => setPage(1);
+  /* fire on mount and whenever deps change */
+  useEffect(() => {
+    const ctrl = new AbortController();
+    fetchData(ctrl.signal);
+    return () => ctrl.abort();
+  }, [fetchData]);
 
+  const resetToFirstPage = () => setPage(1);
+
+  /* ----------------------------- JSX ----------------------------- */
   return (
     <div className="max-w-5xl mx-auto p-6">
       <h2 className="text-2xl font-bold mb-6">Mail History</h2>
@@ -50,12 +62,12 @@ export default function EmailHistory() {
       {/* Filters */}
       <div className="flex flex-wrap gap-4 mb-6">
         <select
+          className="border px-3 py-2 rounded"
           value={status}
           onChange={(e) => {
             setStatus(e.target.value);
-            refresh();
+            resetToFirstPage();
           }}
-          className="border px-3 py-2 rounded"
         >
           <option value="">All Statuses</option>
           <option value="sent">Sent</option>
@@ -65,18 +77,18 @@ export default function EmailHistory() {
         </select>
 
         <input
+          className="border px-3 py-2 rounded flex-1"
           type="text"
           placeholder="Search subject / recipient"
           value={search}
           onChange={(e) => {
             setSearch(e.target.value);
-            refresh();
+            resetToFirstPage();
           }}
-          className="border px-3 py-2 rounded flex-1"
         />
       </div>
 
-      {/* Table */}
+      {/* Table / States */}
       {loading ? (
         <p>Loading…</p>
       ) : error ? (
@@ -103,7 +115,9 @@ export default function EmailHistory() {
                       {new Date(email.createdAt).toLocaleString()}
                     </td>
                     <td className="p-3 max-w-xs truncate">{email.subject}</td>
-                    <td className="p-3 text-center">{email.recipientCount}</td>
+                    <td className="p-3 text-center">
+                      {email.recipientCount}
+                    </td>
                     <td className="p-3 capitalize">
                       <span
                         className={
@@ -131,7 +145,7 @@ export default function EmailHistory() {
                     </td>
                   </tr>
 
-                  {/* Expanded Row */}
+                  {/* Expanded row */}
                   {openId === email._id && (
                     <tr className="bg-gray-50 border-t">
                       <td colSpan="5" className="p-4">
@@ -139,8 +153,7 @@ export default function EmailHistory() {
                         <ul className="list-disc list-inside text-sm space-y-1">
                           {email.recipients.map((r, idx) => (
                             <li key={idx}>
-                              <span className="font-medium">{r.email}</span>{" "}
-                              –{" "}
+                              <span className="font-medium">{r.email}</span> –{" "}
                               <span
                                 className={
                                   r.status === "sent"
@@ -151,10 +164,11 @@ export default function EmailHistory() {
                                 }
                               >
                                 {r.status}
-                              </span>{" "}
+                              </span>
                               {r.sentAt && (
                                 <span className="ml-2 text-gray-500">
-                                  ({new Date(r.sentAt).toLocaleTimeString()})
+                                  (
+                                  {new Date(r.sentAt).toLocaleTimeString()})
                                 </span>
                               )}
                               {r.error && (
@@ -179,9 +193,9 @@ export default function EmailHistory() {
       {totalPages > 1 && (
         <div className="flex justify-center items-center gap-4 mt-6">
           <button
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-            disabled={page === 1}
             className="px-3 py-1 border rounded disabled:opacity-50"
+            disabled={page === 1}
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
           >
             Prev
           </button>
@@ -189,9 +203,9 @@ export default function EmailHistory() {
             Page <strong>{page}</strong> / {totalPages}
           </span>
           <button
-            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            disabled={page === totalPages}
             className="px-3 py-1 border rounded disabled:opacity-50"
+            disabled={page === totalPages}
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
           >
             Next
           </button>

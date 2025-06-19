@@ -13,10 +13,14 @@ export default function BulkMailForm() {
   // Handle file processing
   const processFile = (file) => {
     if (!file) return;
-    
-    const validTypes = ['application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'text/csv'];
+
+    const validTypes = [
+      "application/vnd.ms-excel",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "text/csv",
+    ];
     if (!validTypes.includes(file.type)) {
-      alert('Please upload a valid Excel or CSV file');
+      alert("Please upload a valid Excel or CSV file");
       return;
     }
 
@@ -57,7 +61,7 @@ export default function BulkMailForm() {
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(false);
-    
+
     const files = e.dataTransfer.files;
     if (files.length) {
       processFile(files[0]);
@@ -81,11 +85,13 @@ export default function BulkMailForm() {
 
     setSending(true);
     try {
-      await axios.post(`${process.env.REACT_APP_BACKEND_URL}/api/send-bulk`, {
-        recipients: emails,
-        subject,
-        message,
-      });
+      // (inside sendEmails)
+await axios.post(`${process.env.REACT_APP_BACKEND_URL}/api/send-bulk`, {
+  recipients: emails,
+  subject,
+  content: message,   // ✅ backend expects “content”, not “message”
+});
+
       alert("Email sent successfully!");
     } catch (error) {
       console.error("Error sending email:", error);
@@ -105,7 +111,10 @@ export default function BulkMailForm() {
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Subject Input */}
         <div className="space-y-2">
-          <label htmlFor="subject" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+          <label
+            htmlFor="subject"
+            className="block text-sm font-medium text-gray-700 dark:text-gray-300"
+          >
             Subject
           </label>
           <input
@@ -121,7 +130,10 @@ export default function BulkMailForm() {
 
         {/* Message Box */}
         <div className="space-y-2">
-          <label htmlFor="message" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+          <label
+            htmlFor="message"
+            className="block text-sm font-medium text-gray-700 dark:text-gray-300"
+          >
             Message
           </label>
           <textarea
@@ -139,10 +151,13 @@ export default function BulkMailForm() {
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
             Recipient List
           </label>
-          <div 
+          <div
             className={`flex flex-col items-center justify-center border-2 border-dashed ${
-              isDragging ? 'border-blue-500 bg-blue-100 dark:bg-gray-600' : 
-              fileUploaded ? 'border-green-500' : 'border-blue-300'
+              isDragging
+                ? "border-blue-500 bg-blue-100 dark:bg-gray-600"
+                : fileUploaded
+                ? "border-green-500"
+                : "border-blue-300"
             } rounded-xl p-6 bg-blue-50 dark:bg-gray-700 transition duration-200`}
             onDragEnter={handleDragEnter}
             onDragLeave={handleDragLeave}
@@ -152,8 +167,11 @@ export default function BulkMailForm() {
             <div className="text-center">
               <svg
                 className={`mx-auto h-12 w-12 ${
-                  isDragging ? 'text-blue-500' :
-                  fileUploaded ? 'text-green-500' : 'text-blue-400'
+                  isDragging
+                    ? "text-blue-500"
+                    : fileUploaded
+                    ? "text-green-500"
+                    : "text-blue-400"
                 } transition duration-200`}
                 fill="none"
                 viewBox="0 0 24 24"
@@ -168,7 +186,9 @@ export default function BulkMailForm() {
               </svg>
               <div className="mt-4 flex flex-col items-center text-sm text-gray-600 dark:text-gray-300">
                 {isDragging ? (
-                  <span className="text-blue-500 font-medium">Drop your file here</span>
+                  <span className="text-blue-500 font-medium">
+                    Drop your file here
+                  </span>
                 ) : (
                   <>
                     <label
@@ -196,7 +216,10 @@ export default function BulkMailForm() {
             </div>
           </div>
           <p className="text-sm text-gray-700 dark:text-gray-300 mt-2">
-            Total Emails Loaded: <strong className="text-blue-600 dark:text-blue-400">{emails.length}</strong>
+            Total Emails Loaded:{" "}
+            <strong className="text-blue-600 dark:text-blue-400">
+              {emails.length}
+            </strong>
           </p>
         </div>
 
@@ -207,20 +230,36 @@ export default function BulkMailForm() {
             disabled={sending}
             className={`relative px-8 py-3 rounded-lg font-semibold text-white transition-all duration-300 transform hover:scale-105 active:scale-95 ${
               sending
-                ? 'bg-blue-400 cursor-not-allowed'
-                : 'bg-gradient-to-r from-blue-600 to-blue-400 hover:from-blue-700 hover:to-blue-500 shadow-md hover:shadow-lg'
+                ? "bg-blue-400 cursor-not-allowed"
+                : "bg-gradient-to-r from-blue-600 to-blue-400 hover:from-blue-700 hover:to-blue-500 shadow-md hover:shadow-lg"
             }`}
           >
             {sending ? (
               <span className="flex items-center justify-center">
-                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                <svg
+                  className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  ></circle>
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  ></path>
                 </svg>
                 Sending...
               </span>
             ) : (
-              'Send Emails'
+              "Send Emails"
             )}
           </button>
         </div>
