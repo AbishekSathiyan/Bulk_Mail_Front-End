@@ -2,36 +2,34 @@ import React, { useState, useEffect, useRef } from "react";
 import { FaEye, FaEyeSlash, FaTimes } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import Cookies from "js-cookie";
-const validPassword = import.meta.env.VITE_VALID_PASSWORD ?? "";
 
+/* ─── Main Component ─── */
 export default function LoginPage() {
-  /* ─── State ─── */
-  const [email, setEmail]           = useState("");
-  const [password, setPassword]     = useState("");
-  const [isLoading, setIsLoading]   = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [showError, setShowError]   = useState(false);
+  const [showError, setShowError] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [voicesLoaded, setVoicesLoaded] = useState(false);
-
   const [showOtp, setShowOtp] = useState(false);
-  const [otp, setOtp]         = useState("");
+  const [otp, setOtp] = useState("");
   const [generatedOtp, setGeneratedOtp] = useState("");
 
-  /* ─── Constants ─── */
-  const validPassword = import.meta.env.VITE_VALID_PASSWORD || "defaultPassword123";
-  const validEmail    = "abishek.sathiyan.2002@gmail.com";
-console.log(import.meta.env.VITE_VALID_PASSWORD);
-
   const navigate = useNavigate();
+  const validEmail = "abishek.sathiyan.2002@gmail.com";
+  const validPassword =
+    import.meta.env.VITE_VALID_PASSWORD ?? "defaultPassword123";
 
-  /* ─── Speech setup ─── */
+  console.log("✅ VITE_VALID_PASSWORD:", validPassword);
   useEffect(() => {
     const handleVoicesChanged = () => setVoicesLoaded(true);
     window.speechSynthesis.onvoiceschanged = handleVoicesChanged;
 
     if (window.speechSynthesis.getVoices().length) setVoicesLoaded(true);
-    return () => { window.speechSynthesis.onvoiceschanged = null; };
+    return () => {
+      window.speechSynthesis.onvoiceschanged = null;
+    };
   }, []);
 
   const speak = (msg) => {
@@ -48,24 +46,27 @@ console.log(import.meta.env.VITE_VALID_PASSWORD);
     window.speechSynthesis.speak(u);
   };
 
-  /* ─── Already logged‑in? ─── */
   useEffect(() => {
     if (Cookies.get("token")) navigate("/", { replace: true });
   }, [navigate]);
 
-  /* ─── Submit (email + pwd) ─── */
+  useEffect(() => {
+    // Debug only: check environment variable
+    console.log("✅ VITE_VALID_PASSWORD:", validPassword);
+  }, []);
+
   const handleSubmit = (e) => {
     e.preventDefault();
     setIsLoading(true);
 
     setTimeout(() => {
       const okEmail = email === validEmail;
-      const okPass  = password === validPassword;
+      const okPass = password === validPassword;
 
       if (okEmail && okPass) {
         const newOtp = Math.floor(100000 + Math.random() * 900000).toString();
         setGeneratedOtp(newOtp);
-        console.log("Generated OTP:", newOtp);   // remove in prod
+        console.log("Generated OTP:", newOtp); // Remove in production
         setShowOtp(true);
         speak("Email and password verified. Please enter the OTP sent.");
       } else {
@@ -78,12 +79,10 @@ console.log(import.meta.env.VITE_VALID_PASSWORD);
     }, 800);
   };
 
-  /* ─── Verify OTP ─── */
   const handleOtpVerify = () => {
     if (otp === generatedOtp) {
-      /* 🔑  Set cookie so Next.js middleware can read it */
       Cookies.set("token", generatedOtp, {
-        expires: 1,          // 1 day
+        expires: 1,
         sameSite: "strict",
         secure: import.meta.env.PROD,
         path: "/",
@@ -98,24 +97,29 @@ console.log(import.meta.env.VITE_VALID_PASSWORD);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4 font-poppins relative">
-      {/* ───── Error Popup ───── */}
       {showError && (
         <div className="absolute top-4 left-1/2 -translate-x-1/2 w-full max-w-md z-50 animate-fade-in">
           <div className="bg-red-50 border-l-4 border-red-500 rounded-r-md p-4 shadow-lg">
             <div className="flex">
-              {/* icon */}
-              <svg className="h-5 w-5 text-red-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+              <svg
+                className="h-5 w-5 text-red-500"
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+              >
                 <path
                   fillRule="evenodd"
                   d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
                   clipRule="evenodd"
                 />
               </svg>
-
-              {/* text */}
               <div className="ml-3">
-                <h3 className="text-sm font-medium text-red-800">Access Denied</h3>
-                <p className="mt-2 text-sm text-red-700">{errorMessage}. Please try again.</p>
+                <h3 className="text-sm font-medium text-red-800">
+                  Access Denied
+                </h3>
+                <p className="mt-2 text-sm text-red-700">
+                  {errorMessage}. Please try again.
+                </p>
                 <button
                   type="button"
                   onClick={() => {
@@ -127,8 +131,6 @@ console.log(import.meta.env.VITE_VALID_PASSWORD);
                   Dismiss
                 </button>
               </div>
-
-              {/* close btn */}
               <button
                 onClick={() => {
                   window.speechSynthesis.cancel();
@@ -143,14 +145,14 @@ console.log(import.meta.env.VITE_VALID_PASSWORD);
         </div>
       )}
 
-      {/* ───── Login Card ───── */}
       <div className="w-full max-w-md bg-white border border-gray-200 shadow-lg rounded-xl p-6 sm:p-10">
         <h2 className="text-2xl sm:text-3xl font-semibold text-center text-gray-800 mb-2">
           Welcome back Abishek
         </h2>
-        <p className="text-center text-gray-500 mb-8">Sign in to your account</p>
+        <p className="text-center text-gray-500 mb-8">
+          Sign in to your account
+        </p>
 
-        {/* ─── Email + Password form ─── */}
         <form onSubmit={handleSubmit} className="space-y-6">
           <input
             type="email"
@@ -192,11 +194,10 @@ console.log(import.meta.env.VITE_VALID_PASSWORD);
           )}
         </form>
 
-        {/* ─── OTP section ─── */}
         {showOtp && (
           <div className="mt-6 space-y-4">
             <label className="block text-sm font-medium text-gray-700 text-center">
-              Enter the 6‑digit OTP
+              Enter the 6‑digit OTP
             </label>
             <OtpInput length={6} value={otp} onChange={setOtp} />
             <button
@@ -212,21 +213,18 @@ console.log(import.meta.env.VITE_VALID_PASSWORD);
   );
 }
 
-/* ─────────────────────────────────────────────────────────── */
-
+/* ─── OTP Input Subcomponent ─── */
 function OtpInput({ length = 6, value, onChange }) {
   const inputs = useRef([]);
 
-  /* Auto‑focus first box */
   useEffect(() => {
     inputs.current[0]?.focus();
   }, []);
 
   const handleChange = (val, index) => {
-    const otpArr   = value.split("");
-    otpArr[index]  = val.slice(-1);      // last typed char
+    const otpArr = value.split("");
+    otpArr[index] = val.slice(-1);
     onChange(otpArr.join(""));
-
     if (val && index < length - 1) inputs.current[index + 1]?.focus();
   };
 
