@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { FaEye, FaEyeSlash, FaTimes } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import Cookies from "js-cookie";
+const validPassword = import.meta.env.VITE_VALID_PASSWORD ?? "";
 
 export default function LoginPage() {
   /* ─── State ─── */
@@ -20,6 +21,7 @@ export default function LoginPage() {
   /* ─── Constants ─── */
   const validPassword = import.meta.env.VITE_VALID_PASSWORD || "defaultPassword123";
   const validEmail    = "abishek.sathiyan.2002@gmail.com";
+console.log(import.meta.env.VITE_VALID_PASSWORD);
 
   const navigate = useNavigate();
 
