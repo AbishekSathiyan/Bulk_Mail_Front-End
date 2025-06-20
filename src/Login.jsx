@@ -1,32 +1,35 @@
 import React, { useState, useEffect, useRef } from "react";
 import { FaEye, FaEyeSlash, FaTimes } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
+import Cookies from "js-cookie";
 
-export default function LoginPage({ onAuthSuccess }) {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+export default function LoginPage() {
+  /* ─── State ─── */
+  const [email, setEmail]           = useState("");
+  const [password, setPassword]     = useState("");
+  const [isLoading, setIsLoading]   = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [showError, setShowError] = useState(false);
+  const [showError, setShowError]   = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [voicesLoaded, setVoicesLoaded] = useState(false);
+
   const [showOtp, setShowOtp] = useState(false);
-  const [otp, setOtp] = useState("");
+  const [otp, setOtp]         = useState("");
   const [generatedOtp, setGeneratedOtp] = useState("");
 
-  const validPassword = process.env.REACT_APP_VALID_PASSWORD || "defaultPassword123";
-  const validEmail = "abishek.sathiyan.2002@gmail.com";
+  /* ─── Constants ─── */
+  const validPassword = import.meta.env.VITE_VALID_PASSWORD || "defaultPassword123";
+  const validEmail    = "abishek.sathiyan.2002@gmail.com";
 
   const navigate = useNavigate();
 
+  /* ─── Speech setup ─── */
   useEffect(() => {
     const handleVoicesChanged = () => setVoicesLoaded(true);
     window.speechSynthesis.onvoiceschanged = handleVoicesChanged;
 
-    if (window.speechSynthesis.getVoices().length > 0) {
-      setVoicesLoaded(true);
-    }
-    return () => (window.speechSynthesis.onvoiceschanged = null);
+    if (window.speechSynthesis.getVoices().length) setVoicesLoaded(true);
+    return () => { window.speechSynthesis.onvoiceschanged = null; };
   }, []);
 
   const speak = (msg) => {
@@ -36,23 +39,31 @@ export default function LoginPage({ onAuthSuccess }) {
     u.pitch = 1.2;
     const female = window.speechSynthesis
       .getVoices()
-      .find((v) => ["Female", "woman", "Zira", "Samantha"].some((k) => v.name.includes(k)));
+      .find((v) =>
+        ["Female", "woman", "Zira", "Samantha"].some((k) => v.name.includes(k))
+      );
     if (female) u.voice = female;
     window.speechSynthesis.speak(u);
   };
 
+  /* ─── Already logged‑in? ─── */
+  useEffect(() => {
+    if (Cookies.get("token")) navigate("/", { replace: true });
+  }, [navigate]);
+
+  /* ─── Submit (email + pwd) ─── */
   const handleSubmit = (e) => {
     e.preventDefault();
     setIsLoading(true);
 
     setTimeout(() => {
       const okEmail = email === validEmail;
-      const okPass = password === validPassword;
+      const okPass  = password === validPassword;
 
       if (okEmail && okPass) {
         const newOtp = Math.floor(100000 + Math.random() * 900000).toString();
         setGeneratedOtp(newOtp);
-        console.log("Generated OTP:", newOtp);
+        console.log("Generated OTP:", newOtp);   // remove in prod
         setShowOtp(true);
         speak("Email and password verified. Please enter the OTP sent.");
       } else {
@@ -62,12 +73,19 @@ export default function LoginPage({ onAuthSuccess }) {
         speak(`Access denied. ${err}.`);
       }
       setIsLoading(false);
-    }, 1000);
+    }, 800);
   };
 
+  /* ─── Verify OTP ─── */
   const handleOtpVerify = () => {
     if (otp === generatedOtp) {
-      sessionStorage.setItem("isAuth", "true");
+      /* 🔑  Set cookie so Next.js middleware can read it */
+      Cookies.set("token", generatedOtp, {
+        expires: 1,          // 1 day
+        sameSite: "strict",
+        secure: import.meta.env.PROD,
+        path: "/",
+      });
       navigate("/", { replace: true });
     } else {
       setErrorMessage("Incorrect OTP");
@@ -78,11 +96,12 @@ export default function LoginPage({ onAuthSuccess }) {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4 font-poppins relative">
-      {/* Error Popup */}
+      {/* ───── Error Popup ───── */}
       {showError && (
         <div className="absolute top-4 left-1/2 -translate-x-1/2 w-full max-w-md z-50 animate-fade-in">
           <div className="bg-red-50 border-l-4 border-red-500 rounded-r-md p-4 shadow-lg">
             <div className="flex">
+              {/* icon */}
               <svg className="h-5 w-5 text-red-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                 <path
                   fillRule="evenodd"
@@ -90,11 +109,11 @@ export default function LoginPage({ onAuthSuccess }) {
                   clipRule="evenodd"
                 />
               </svg>
+
+              {/* text */}
               <div className="ml-3">
                 <h3 className="text-sm font-medium text-red-800">Access Denied</h3>
-                <p className="mt-2 text-sm text-red-700">
-                  {errorMessage}. Please try again.
-                </p>
+                <p className="mt-2 text-sm text-red-700">{errorMessage}. Please try again.</p>
                 <button
                   type="button"
                   onClick={() => {
@@ -106,6 +125,8 @@ export default function LoginPage({ onAuthSuccess }) {
                   Dismiss
                 </button>
               </div>
+
+              {/* close btn */}
               <button
                 onClick={() => {
                   window.speechSynthesis.cancel();
@@ -120,14 +141,14 @@ export default function LoginPage({ onAuthSuccess }) {
         </div>
       )}
 
-      {/* Login Box */}
+      {/* ───── Login Card ───── */}
       <div className="w-full max-w-md bg-white border border-gray-200 shadow-lg rounded-xl p-6 sm:p-10">
         <h2 className="text-2xl sm:text-3xl font-semibold text-center text-gray-800 mb-2">
           Welcome back Abishek
         </h2>
         <p className="text-center text-gray-500 mb-8">Sign in to your account</p>
 
-        {/* Form */}
+        {/* ─── Email + Password form ─── */}
         <form onSubmit={handleSubmit} className="space-y-6">
           <input
             type="email"
@@ -169,11 +190,11 @@ export default function LoginPage({ onAuthSuccess }) {
           )}
         </form>
 
-        {/* OTP Section */}
+        {/* ─── OTP section ─── */}
         {showOtp && (
           <div className="mt-6 space-y-4">
             <label className="block text-sm font-medium text-gray-700 text-center">
-              Enter the 6-digit OTP
+              Enter the 6‑digit OTP
             </label>
             <OtpInput length={6} value={otp} onChange={setOtp} />
             <button
@@ -189,19 +210,22 @@ export default function LoginPage({ onAuthSuccess }) {
   );
 }
 
-/* ───── Internal Component ───── */
+/* ─────────────────────────────────────────────────────────── */
+
 function OtpInput({ length = 6, value, onChange }) {
   const inputs = useRef([]);
 
-  const handleChange = (val, index) => {
-    const otpArr = value.split("");
-    otpArr[index] = val.slice(-1);
-    const newOtp = otpArr.join("");
-    onChange(newOtp);
+  /* Auto‑focus first box */
+  useEffect(() => {
+    inputs.current[0]?.focus();
+  }, []);
 
-    if (val && index < length - 1) {
-      inputs.current[index + 1]?.focus();
-    }
+  const handleChange = (val, index) => {
+    const otpArr   = value.split("");
+    otpArr[index]  = val.slice(-1);      // last typed char
+    onChange(otpArr.join(""));
+
+    if (val && index < length - 1) inputs.current[index + 1]?.focus();
   };
 
   const handleKeyDown = (e, i) => {
@@ -217,6 +241,7 @@ function OtpInput({ length = 6, value, onChange }) {
           key={i}
           ref={(el) => (inputs.current[i] = el)}
           type="text"
+          inputMode="numeric"
           maxLength={1}
           value={value[i] || ""}
           onChange={(e) => handleChange(e.target.value, i)}
