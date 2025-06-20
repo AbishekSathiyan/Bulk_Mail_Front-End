@@ -3,14 +3,16 @@ import axios from "axios";
 import * as XLSX from "xlsx";
 
 export default function BulkMailForm() {
-  const [message, setMessage] = useState("");
-  const [subject, setSubject] = useState("");
-  const [emails, setEmails] = useState([]);
-  const [sending, setSending] = useState(false);
+  const [message, setMessage]       = useState("");
+  const [subject, setSubject]       = useState("");
+  const [emails, setEmails]         = useState([]);
+  const [sending, setSending]       = useState(false);
   const [fileUploaded, setFileUploaded] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
 
-  // Handle file processing
+  /* ---------------------------------------------
+     Helper: read .xlsx / .csv and extract emails
+  --------------------------------------------- */
   const processFile = (file) => {
     if (!file) return;
 
@@ -27,74 +29,73 @@ export default function BulkMailForm() {
     setFileUploaded(false);
     const reader = new FileReader();
     reader.onload = (evt) => {
-      const wb = XLSX.read(evt.target.result, { type: "array" });
-      const ws = wb.Sheets[wb.SheetNames[0]];
+      const wb   = XLSX.read(evt.target.result, { type: "array" });
+      const ws   = wb.Sheets[wb.SheetNames[0]];
       const data = XLSX.utils.sheet_to_json(ws, { header: 1 });
+
       const extracted = data
         .map((row) => row[0])
         .filter((v) => v && v.includes("@"));
+
       setEmails(extracted);
       setFileUploaded(true);
     };
     reader.readAsArrayBuffer(file);
   };
 
-  // Drag and drop handlers
+  /* ---------------------------------------------
+     Drag‑and‑drop handlers
+  --------------------------------------------- */
   const handleDragEnter = useCallback((e) => {
-    e.preventDefault();
-    e.stopPropagation();
+    e.preventDefault(); e.stopPropagation();
     setIsDragging(true);
   }, []);
 
   const handleDragLeave = useCallback((e) => {
-    e.preventDefault();
-    e.stopPropagation();
+    e.preventDefault(); e.stopPropagation();
     setIsDragging(false);
   }, []);
 
   const handleDragOver = useCallback((e) => {
-    e.preventDefault();
-    e.stopPropagation();
+    e.preventDefault(); e.stopPropagation();
   }, []);
 
   const handleDrop = useCallback((e) => {
-    e.preventDefault();
-    e.stopPropagation();
+    e.preventDefault(); e.stopPropagation();
     setIsDragging(false);
 
     const files = e.dataTransfer.files;
-    if (files.length) {
-      processFile(files[0]);
-    }
+    if (files.length) processFile(files[0]);
   }, []);
 
-  // Regular file input handler
-  const handleFileUpload = (e) => {
-    processFile(e.target.files[0]);
-  };
+  /* ---------------------------------------------
+     Regular file‑input handler
+  --------------------------------------------- */
+  const handleFileUpload = (e) => processFile(e.target.files[0]);
+
+  /* ---------------------------------------------
+     Send email
+  --------------------------------------------- */
+  const BASE = process.env.REACT_APP_API_URL;   // e.g. http://localhost:5000/api
 
   const sendEmails = async () => {
-    if (emails.length === 0) {
-      alert("No emails loaded!");
-      return;
+    if (!emails.length) {
+      alert("No emails loaded!"); return;
     }
     if (!subject || !message) {
-      alert("Subject and message are required!");
-      return;
+      alert("Subject and message are required!"); return;
     }
 
     setSending(true);
     try {
-      // (inside sendEmails)
-await axios.post(`${process.env.REACT_APP_BACKEND_URL}/api/send-bulk`, {
-  recipients: emails,
-  subject,
-  content: message,   // ✅ backend expects “content”, not “message”
-});
-
+      await axios.post(`${BASE}/send-bulk`, {
+        recipients: emails,
+        subject,
+        content: message,   // backend expects “content”
+      });
       alert("Email sent successfully!");
-    } catch (error) {
-      console.error("Error sending email:", error);
+    } catch (err) {
+      console.error("Error sending email:", err);
       alert("There was an error sending the email.");
     } finally {
       setSending(false);
@@ -106,15 +107,15 @@ await axios.post(`${process.env.REACT_APP_BACKEND_URL}/api/send-bulk`, {
     sendEmails();
   };
 
+  /* ---------------------------------------------
+     JSX
+  --------------------------------------------- */
   return (
     <div className="w-full max-w-4xl bg-white dark:bg-gray-800 text-black dark:text-white rounded-2xl shadow-lg p-6 sm:p-8 space-y-6 transition-all duration-300">
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Subject Input */}
+        {/* Subject */}
         <div className="space-y-2">
-          <label
-            htmlFor="subject"
-            className="block text-sm font-medium text-gray-700 dark:text-gray-300"
-          >
+          <label htmlFor="subject" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
             Subject
           </label>
           <input
@@ -128,12 +129,9 @@ await axios.post(`${process.env.REACT_APP_BACKEND_URL}/api/send-bulk`, {
           />
         </div>
 
-        {/* Message Box */}
+        {/* Message */}
         <div className="space-y-2">
-          <label
-            htmlFor="message"
-            className="block text-sm font-medium text-gray-700 dark:text-gray-300"
-          >
+          <label htmlFor="message" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
             Message
           </label>
           <textarea
@@ -146,11 +144,9 @@ await axios.post(`${process.env.REACT_APP_BACKEND_URL}/api/send-bulk`, {
           />
         </div>
 
-        {/* File Upload with Drag and Drop */}
+        {/* File Upload (drag‑and‑drop or click) */}
         <div className="space-y-2">
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-            Recipient List
-          </label>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Recipient List</label>
           <div
             className={`flex flex-col items-center justify-center border-2 border-dashed ${
               isDragging
@@ -165,6 +161,7 @@ await axios.post(`${process.env.REACT_APP_BACKEND_URL}/api/send-bulk`, {
             onDrop={handleDrop}
           >
             <div className="text-center">
+              {/* icon */}
               <svg
                 className={`mx-auto h-12 w-12 ${
                   isDragging
@@ -184,11 +181,11 @@ await axios.post(`${process.env.REACT_APP_BACKEND_URL}/api/send-bulk`, {
                   d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
                 />
               </svg>
+
+              {/* text & input */}
               <div className="mt-4 flex flex-col items-center text-sm text-gray-600 dark:text-gray-300">
                 {isDragging ? (
-                  <span className="text-blue-500 font-medium">
-                    Drop your file here
-                  </span>
+                  <span className="text-blue-500 font-medium">Drop your file here</span>
                 ) : (
                   <>
                     <label
@@ -217,9 +214,7 @@ await axios.post(`${process.env.REACT_APP_BACKEND_URL}/api/send-bulk`, {
           </div>
           <p className="text-sm text-gray-700 dark:text-gray-300 mt-2">
             Total Emails Loaded:{" "}
-            <strong className="text-blue-600 dark:text-blue-400">
-              {emails.length}
-            </strong>
+            <strong className="text-blue-600 dark:text-blue-400">{emails.length}</strong>
           </p>
         </div>
 
@@ -242,14 +237,7 @@ await axios.post(`${process.env.REACT_APP_BACKEND_URL}/api/send-bulk`, {
                   fill="none"
                   viewBox="0 0 24 24"
                 >
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                  ></circle>
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                   <path
                     className="opacity-75"
                     fill="currentColor"

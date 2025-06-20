@@ -1,26 +1,43 @@
-// EmailHistory.jsx
-import React, { useEffect, useState, useCallback } from "react";
+// EmailHistory.jsx – full‑feature version (export CSV, sort, chart, archive & delete)
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import axios from "axios";
+import {
+  PieChart,
+  Pie,
+  Cell,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from "recharts";
 
 const LIMIT = 10;
-const BASE = import.meta.env.VITE_BACKEND_URL;
+const BASE = process.env.REACT_APP_API_URL; // e.g. http://localhost:5000/api
+const STATUS_COLORS = {
+  sent: "#22c55e", // green‑500
+  partial: "#eab308", // yellow‑500
+  failed: "#ef4444", // red‑500
+  pending: "#6b7280", // gray‑500
+};
 
 export default function EmailHistory() {
+  /* ------------------------------ state --------------------------------- */
   const [emails, setEmails] = useState([]);
   const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
+  const [totalPages, setTotal] = useState(1);
   const [status, setStatus] = useState("");
   const [search, setSearch] = useState("");
+  const [sort, setSort] = useState({ field: "createdAt", dir: "desc" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [openId, setOpenId] = useState(null);
 
+  /* --------------------------- data fetch -------------------------------- */
   const fetchData = useCallback(
     async (signal) => {
       setLoading(true);
       setError(null);
       try {
-        const { data } = await axios.get(`${BASE}/api/history`, {
+        const { data } = await axios.get(`${BASE}/history`, {
           signal,
           params: {
             page,
@@ -29,19 +46,28 @@ export default function EmailHistory() {
             ...(search && { search }),
           },
         });
-        setEmails(data.data);
-        setTotalPages(data.pagination?.totalPages || 1);
+        let items = data.data;
+        // client‑side sort (easy to move server‑side later)
+        items = items.sort((a, b) => {
+          const dir = sort.dir === "asc" ? 1 : -1;
+          if (sort.field === "subject")
+            return a.subject.localeCompare(b.subject) * dir;
+          if (sort.field === "status")
+            return a.status.localeCompare(b.status) * dir;
+          // default date
+          return (new Date(a.createdAt) - new Date(b.createdAt)) * dir;
+        });
+        setEmails(items);
+        setTotal(data.pagination?.totalPages || 1);
       } catch (err) {
         if (axios.isCancel(err)) return;
-        const msg =
-          err.response?.data?.error ||
-          (err.message.startsWith("Network") ? "Network / CORS error" : err.message);
+        const msg = err.response?.data?.error || "Request failed";
         setError(msg);
       } finally {
         setLoading(false);
       }
     },
-    [page, status, search]
+    [page, status, search, sort]
   );
 
   useEffect(() => {
@@ -50,44 +76,144 @@ export default function EmailHistory() {
     return () => ctrl.abort();
   }, [fetchData]);
 
-  const resetToFirstPage = () => setPage(1);
+  const resetPage = () => setPage(1);
 
+  /* --------------------------- helpers ----------------------------------- */
+  const statusStats = useMemo(() => {
+    const stats = { sent: 0, partial: 0, failed: 0, pending: 0 };
+    emails.forEach((m) => stats[m.status]++);
+    return Object.entries(stats)
+      .filter(([, v]) => v > 0)
+      .map(([k, v]) => ({ name: k, value: v, fill: STATUS_COLORS[k] }));
+  }, [emails]);
+
+  const exportCsv = () => {
+    const header = ["Date", "Subject", "Status", "Recipients"];
+    const rows = emails.map((m) => [
+      new Date(m.createdAt).toLocaleString(),
+      m.subject.replace(/\n/g, " "),
+      m.status,
+      m.recipientCount,
+    ]);
+    const csv = [header, ...rows].map((r) => r.join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `email_history_page${page}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm("Delete this record?")) return;
+    try {
+      await axios.delete(`${BASE}/history/${id}`);
+      setEmails((prev) => prev.filter((e) => e._id !== id));
+    } catch (err) {
+      alert(err.response?.data?.error || "Delete failed");
+    }
+  };
+
+  const handleArchive = async (id) => {
+    try {
+      await axios.put(`${BASE}/history/${id}`, { archived: true });
+      setEmails((prev) => prev.filter((e) => e._id !== id));
+    } catch (err) {
+      alert(err.response?.data?.error || "Archive failed");
+    }
+  };
+
+  /* ------------------------------ UI ------------------------------------- */
   return (
-    <div className="max-w-5xl mx-auto p-6">
-      <h2 className="text-2xl font-bold mb-6">Mail History</h2>
+    <div className="max-w-6xl mx-auto p-6 space-y-8">
+      {/* Header + Export */}
+      <div className="flex justify-between items-center flex-wrap gap-4">
+        <h2 className="text-2xl font-bold">Mail History</h2>
+        <button
+          onClick={exportCsv}
+          className="px-4 py-2 bg-blue-600 text-white rounded shadow hover:bg-blue-700"
+        >
+          Export CSV
+        </button>
+      </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-4 mb-6">
+      <div className="flex flex-wrap gap-4 items-center">
+        {/* Status filter */}
         <select
           className="border px-3 py-2 rounded"
           value={status}
           onChange={(e) => {
             setStatus(e.target.value);
-            resetToFirstPage();
+            resetPage();
           }}
         >
           <option value="">All Statuses</option>
-          <option value="sent">Sent</option>
-          <option value="partial">Partial</option>
-          <option value="failed">Failed</option>
-          <option value="pending">Pending</option>
+          {Object.keys(STATUS_COLORS).map((s) => (
+            <option key={s} value={s}>
+              {s.charAt(0).toUpperCase() + s.slice(1)}
+            </option>
+          ))}
         </select>
 
+        {/* Search */}
         <input
-          className="border px-3 py-2 rounded flex-1"
+          className="border px-3 py-2 rounded flex-1 min-w-[200px]"
           type="text"
-          placeholder="Search subject / recipient"
+          placeholder="Search subject or recipient"
           value={search}
           onChange={(e) => {
             setSearch(e.target.value);
-            resetToFirstPage();
+            resetPage();
           }}
         />
+
+        {/* Sort */}
+        <select
+          className="border px-3 py-2 rounded"
+          value={`${sort.field}:${sort.dir}`}
+          onChange={(e) => {
+            const [field, dir] = e.target.value.split(":");
+            setSort({ field, dir });
+          }}
+        >
+          <option value="createdAt:desc">Newest first</option>
+          <option value="createdAt:asc">Oldest first</option>
+          <option value="subject:asc">Subject A→Z</option>
+          <option value="subject:desc">Subject Z→A</option>
+          <option value="status:asc">Status A→Z</option>
+          <option value="status:desc">Status Z→A</option>
+        </select>
       </div>
 
-      {/* Table / States */}
+      {/* Stats PieChart */}
+      {statusStats.length > 0 && (
+        <div className="w-full h-72">
+          <ResponsiveContainer>
+            <PieChart>
+              <Pie
+                dataKey="value"
+                data={statusStats}
+                innerRadius={60}
+                outerRadius={100}
+                paddingAngle={3}
+                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+              >
+                {statusStats.map((entry) => (
+                  <Cell key={entry.name} fill={entry.fill} />
+                ))}
+              </Pie>
+              <Tooltip />
+              <Legend />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+
+      {/* Table */}
       {loading ? (
-        <p>Loading…</p>
+        <p>Loading...</p>
       ) : error ? (
         <p className="text-red-600">{error}</p>
       ) : emails.length === 0 ? (
@@ -97,41 +223,50 @@ export default function EmailHistory() {
           <table className="w-full border rounded">
             <thead className="bg-gray-100 text-left">
               <tr>
-                <th className="p-3">Date</th>
-                <th className="p-3">Subject</th>
-                <th className="p-3 text-center">Count</th>
-                <th className="p-3">Status</th>
-                <th className="p-3"></th>
+                <th className="p-3 cursor-pointer">Date</th>
+                <th className="p-3 cursor-pointer">Subject</th>
+                <th className="p-3 text-center">Recipients</th>
+                <th className="p-3 cursor-pointer">Status</th>
+                <th className="p-3 text-end">Actions</th>
               </tr>
             </thead>
             <tbody>
               {emails.map((email) => (
                 <React.Fragment key={email._id}>
                   <tr className="border-t">
-                    <td className="p-3">{new Date(email.createdAt).toLocaleString()}</td>
-                    <td className="p-3 max-w-xs truncate">{email.subject}</td>
+                    <td className="p-3 whitespace-nowrap">
+                      {new Date(email.createdAt).toLocaleString()}
+                    </td>
+                    <td className="p-3 max-w-xs truncate" title={email.subject}>
+                      {email.subject}
+                    </td>
                     <td className="p-3 text-center">{email.recipientCount}</td>
                     <td className="p-3 capitalize">
                       <span
-                        className={
-                          email.status === "sent"
-                            ? "text-green-600"
-                            : email.status === "partial"
-                            ? "text-yellow-600"
-                            : email.status === "failed"
-                            ? "text-red-600"
-                            : "text-gray-600"
-                        }
+                        className="font-medium"
+                        style={{ color: STATUS_COLORS[email.status] }}
                       >
                         {email.status}
                       </span>
                     </td>
-                    <td className="p-3 text-right">
+                    <td className="p-3 text-end space-x-4 whitespace-nowrap">
                       <button
                         onClick={() => setOpenId(openId === email._id ? null : email._id)}
                         className="text-blue-600 underline"
                       >
                         {openId === email._id ? "Hide" : "View"}
+                      </button>
+                      <button
+                        onClick={() => handleArchive(email._id)}
+                        className="text-yellow-600 underline"
+                      >
+                        Archive
+                      </button>
+                      <button
+                        onClick={() => handleDelete(email._id)}
+                        className="text-red-600 underline"
+                      >
+                        Delete
                       </button>
                     </td>
                   </tr>
@@ -144,15 +279,9 @@ export default function EmailHistory() {
                         <ul className="list-disc list-inside text-sm space-y-1">
                           {email.recipients.map((r, idx) => (
                             <li key={idx}>
-                              <span className="font-medium">{r.email}</span> –{" "}
+                              <span className="font-medium">{r.email}</span> – {" "}
                               <span
-                                className={
-                                  r.status === "sent"
-                                    ? "text-green-600"
-                                    : r.status === "failed"
-                                    ? "text-red-600"
-                                    : "text-gray-600"
-                                }
+                                style={{ color: STATUS_COLORS[r.status] || "#6b7280" }}
                               >
                                 {r.status}
                               </span>
